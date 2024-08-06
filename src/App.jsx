@@ -34,6 +34,46 @@ const ProfileSelector = () => {
   );
 };
 
+const MatchesList = () => {
+  return (
+    <div className="rounded-lg shadow-lg p-4">
+      <h2 className="text-2xl font-bold mb-4">Matches</h2>
+      <ul>
+        {[
+          {
+            id: 1,
+            firstname: "Foo",
+            lastname: "Bar",
+            imageUrl:
+              "http://localhost:8080/images/0b1273d4-ab2f-4edd-858b-6f1ff1071fb9.jpg",
+          },
+          {
+            id: 2,
+            firstname: "Baz",
+            lastname: "Qux",
+            imageUrl:
+              "http://localhost:8080/images/2fc4a600-3bad-4753-b5c7-ebcc987c460b.jpg",
+          },
+        ].map((match) => (
+          <li key={match.id} className="mb-2">
+            <button className="w-full hover:bg-gray-100 rounded flex item-center">
+              <img
+                src={match.imageUrl}
+                className="w-16 h-16 rounded-full mr-3 object-cover"
+              />
+              <span>
+                <h3 className="font-bold">
+                  {match.firstname} {match.lastname}
+                </h3>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
 function App() {
   return (
     <div className="max-w-md mx-auto p-4">
@@ -42,6 +82,7 @@ function App() {
         <MessageCircle />
       </nav>
       <ProfileSelector />
+      {/* <MatchesList /> */}
     </div>
   );
 }
