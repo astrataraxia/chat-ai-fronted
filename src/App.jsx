@@ -47,7 +47,7 @@ const sendMessage = async (conversationId, message) => {
     `http://localhost:8080/conversations/${conversationId}`,
     {
       method: "POST",
-      header: {
+      headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ messageText: message, authorId: conversationId }),
