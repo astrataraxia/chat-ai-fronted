@@ -1,5 +1,5 @@
 import "./App.css";
-import { User, MessageCircle, X, Heart } from "lucide-react";
+import { User, MessageCircle, X, Heart, Send } from "lucide-react";
 import Reaact, { useState, useEffect } from "react";
 
 const fetchRandomProfile = async () => {
@@ -21,6 +21,42 @@ const saveSwipe = async (profileId) => {
   if (!response.ok) {
     throw new Error("Failed to save swipe");
   }
+};
+
+const fetchMatches = async () => {
+  const response = await fetch("http://localhost:8080/matches");
+  if (!response.ok) {
+    throw new Error("Failed to save swipe");
+  }
+  return response.json();
+};
+
+const fetchConversation = async (conversationId) => {
+  console.log(`fetching conversation: ${conversationId}`);
+  const response = await fetch(
+    `http://localhost:8080/conversations/${conversationId}`
+  );
+  if (!response.ok) {
+    throw new Error("Failed to fetch conversation");
+  }
+  return response.json();
+};
+
+const sendMessage = async (conversationId, message) => {
+  const response = await fetch(
+    `http://localhost:8080/conversations/${conversationId}`,
+    {
+      method: "POST",
+      header: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ messageText: message, authorId: conversationId }),
+    }
+  );
+  if (!response.ok) {
+    throw new Error("Failed to submit message");
+  }
+  return response.json();
 };
 
 const ProfileSelector = ({ profile, onSwipe }) => {
@@ -57,39 +93,24 @@ const ProfileSelector = ({ profile, onSwipe }) => {
   );
 };
 
-const MatchesList = ({ onSelectMatch }) => {
+const MatchesList = ({ matches, onSelectMatch }) => {
   return (
     <div className="rounded-lg shadow-lg p-4">
       <h2 className="text-2xl font-bold mb-4">Matches</h2>
       <ul>
-        {[
-          {
-            id: 1,
-            firstname: "Foo",
-            lastname: "Bar",
-            imageUrl:
-              "http://localhost:8080/images/0b1273d4-ab2f-4edd-858b-6f1ff1071fb9.jpg",
-          },
-          {
-            id: 2,
-            firstname: "Baz",
-            lastname: "Qux",
-            imageUrl:
-              "http://localhost:8080/images/2fc4a600-3bad-4753-b5c7-ebcc987c460b.jpg",
-          },
-        ].map((match) => (
-          <li key={match.id} className="mb-2">
+        {matches.map((match, index) => (
+          <li key={index} className="mb-2">
             <button
               className="w-full hover:bg-gray-100 rounded flex item-center"
-              onClick={onSelectMatch}
+              onClick={() => onSelectMatch(match.profile, match.conversationId)}
             >
               <img
-                src={match.imageUrl}
+                src={"http://localhost:8080/images/" + match.profile.imageUrl}
                 className="w-16 h-16 rounded-full mr-3 object-cover"
               />
               <span>
                 <h3 className="font-bold">
-                  {match.firstname} {match.lastname}
+                  {match.profile.firstName} {match.profile.lastName}
                 </h3>
               </span>
             </button>
@@ -100,49 +121,82 @@ const MatchesList = ({ onSelectMatch }) => {
   );
 };
 
-const ChatScreen = () => {
+const ChatScreen = ({ currentMatch, conversation, refreshState }) => {
   const [input, setInput] = useState("");
 
-  const handleSend = () => {
-    if (input.trim()) {
-      console.log(input);
-      setInput("");
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend(conversation, input);
     }
   };
 
-  return (
+  const handleSend = async (conversation, input) => {
+    if (input.trim()) {
+      await sendMessage(conversation.id, input);
+      setInput("");
+    }
+    refreshState();
+  };
+
+  return currentMatch ? (
     <div className="rounded-lg shadow-lg p-4">
-      <h2 className="text-2xl font-bold">Chat with Foo Bar</h2>
-      <div className="h-[50vh] border rounded overflow-y-auto mb-4 p-2">
-        {[
-          "Hi",
-          "How are you?",
-          "How are you?",
-          "How are you?",
-          "How are you?",
-          "How are you?",
-        ].map((message, index) => (
-          <div key={index}>
-            <div className="mb-4 p-2 rounded bg-gray-100">{message}</div>
+      <h2 className="text-2xl font-bold mb-4">
+        Chat with {currentMatch.firstName} {currentMatch.lastName}
+      </h2>
+      <div className="h-[50vh] border rounded-lg overflow-y-auto mb-6 p-4 bg-gray-50">
+        {conversation.messages.map((message, index) => (
+          <div
+            key={index}
+            className={`flex ${
+              message.authorId === "user" ? "justify-end" : "justify-start"
+            } mb-4`}
+          >
+            <div
+              className={`flex items-end ${
+                message.authorId === "user" ? "flex-row-reverse" : "flex-row"
+              }`}
+            >
+              {message.authorId === "user" ? (
+                <User size={15} />
+              ) : (
+                <img
+                  src={`http://localhost:8080/images/${currentMatch.imageUrl}`}
+                  className="w-11 h-11 rounded-full"
+                />
+              )}
+              <div
+                className={`max-w-xs px-4 py-2 rounded-2xl ${
+                  message.authorId === "user"
+                    ? "bg-blue-500 text-white ml-2"
+                    : "bg-gray-200 text-gray-800 mr-2"
+                }`}
+              >
+                {message.messageText}
+              </div>
+            </div>
           </div>
         ))}
       </div>
-      <div className="flex">
+      <div className="flex items-center">
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          className="border flex-1 rounded p-2 mr-2"
+          onKeyPress={handleKeyPress}
+          className="flex-1 border-2 border-gray-300 rounded-full py-2 px-4 mr-2 focus:outline-none focus:border-blue-500"
           placeholder="Type a message..."
         />
         <button
-          className="bg-blue-500 text-white rounded p-2"
-          onClick={handleSend}
+          className="bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600 transition-colors duration-200"
+          onClick={() => handleSend(conversation, input)}
         >
-          Send
+          <Send size={24} />
         </button>
       </div>
     </div>
+  ) : (
+    <div>Loading...</div>
   );
 };
 
@@ -156,18 +210,51 @@ function App() {
     }
   };
 
+  const loadMatches = async () => {
+    try {
+      const matches = await fetchMatches();
+      setMatches(matches);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     loadRandomProfiles();
+    loadMatches();
   }, []);
 
   const [currentScreen, setCurrentScreen] = useState("profile");
   const [currentProfile, setCurrentProfile] = useState(null);
+  const [matches, setMatches] = useState([]);
+  const [currentMatchAndConversation, setCurrentMatchAndConversation] =
+    useState({ match: {}, conversation: [] });
 
-  const onSwipe = (profileId, direction) => {
-    if (direction === "right") {
-      saveSwipe(profileId);
-    }
+  const onSwipe = async (profileId, direction) => {
     loadRandomProfiles();
+    if (direction === "right") {
+      await saveSwipe(profileId);
+      await loadMatches();
+    }
+  };
+
+  const onSelectMatch = async (profile, conversationId) => {
+    const conversation = await fetchConversation(conversationId);
+    setCurrentMatchAndConversation({
+      match: profile,
+      conversation: conversation,
+    });
+    setCurrentScreen("chat");
+  };
+
+  const refreshChatState = async () => {
+    const conversation = await fetchConversation(
+      currentMatchAndConversation.conversation.id
+    );
+    setCurrentMatchAndConversation({
+      match: currentMatchAndConversation.match,
+      conversation: conversation,
+    });
   };
 
   const renderScreen = () => {
@@ -175,9 +262,15 @@ function App() {
       case "profile":
         return <ProfileSelector profile={currentProfile} onSwipe={onSwipe} />;
       case "matches":
-        return <MatchesList onSelectMatch={() => setCurrentScreen("chat")} />;
+        return <MatchesList matches={matches} onSelectMatch={onSelectMatch} />;
       case "chat":
-        return <ChatScreen />;
+        return (
+          <ChatScreen
+            currentMatch={currentMatchAndConversation.match}
+            conversation={currentMatchAndConversation.conversation}
+            refreshState={refreshChatState}
+          />
+        );
     }
   };
 
